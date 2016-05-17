@@ -1,0 +1,4 @@
+FROM nginx
+MAINTAINER John Kelly <john.m.kelly@cdk.com>
+
+COPY todobackend.conf /etc/nginx/conf.d/todobackend.conf
