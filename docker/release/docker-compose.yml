@@ -1,64 +1,66 @@
-app:
-  build: ../../
-  dockerfile: docker/release/Dockerfile
-  volumes_from:
-    - webroot
-  links:
-    - db
-  environment:
-    DJANGO_SETTINGS_MODULE: todobackend.settings.release
-    MYSQL_HOST: db
-    MYSQL_USER: todo
-    MYSQL_PASSWORD: password
-  command:
-    - uwsgi
-    - "--socket /var/www/todobackend/todobackend.sock"
-    - "--chmod-socket=666"
-    - "--module todobackend.wsgi"
-    - "--master"
-    - "--die-on-term"
+version: '2'
 
-test:
-  image: postalservice14/todobackend-specs
-  links:
-    - nginx
-  environment:
-    URL: http://nginx:8000/todos
-    JUNIT_REPORT_PATH: /reports/acceptance.xml
-  command: --reporter mocha-jenkins-reporter
+volumes:
+  webroot:
+    driver: local
 
-nginx:
-  build: .
-  dockerfile: Dockerfile.nginx
-  links:
-    - app
-  ports:
-    - "8000:8000"
-  volumes_from:
-    - webroot
+services:
+  app:
+    build:
+      context: ../../
+      dockerfile: docker/release/Dockerfile
+    volumes:
+      - webroot:/var/www/todobackend
+    links:
+      - db
+    environment:
+      DJANGO_SETTINGS_MODULE: todobackend.settings.release
+      MYSQL_HOST: db
+      MYSQL_USER: todo
+      MYSQL_PASSWORD: password
+    command:
+      - uwsgi
+      - "--socket /var/www/todobackend/todobackend.sock"
+      - "--chmod-socket=666"
+      - "--module todobackend.wsgi"
+      - "--master"
+      - "--die-on-term"
 
-webroot:
-  build: ../../
-  dockerfile: docker/release/Dockerfile
-  volumes:
-    - /var/www/todobackend
-  entrypoint: "true"
+  test:
+    image: postalservice14/todobackend-specs
+    links:
+      - nginx
+    environment:
+      URL: http://nginx:8000/todos
+      JUNIT_REPORT_PATH: /reports/acceptance.xml
+    command: --reporter mocha-jenkins-reporter
 
-db:
-  image: mysql:5.7
-  expose:
-    - "3306"
-  environment:
-    MYSQL_DATABASE: todobackend
-    MYSQL_USER: todo
-    MYSQL_PASSWORD: password
-    MYSQL_ROOT_PASSWORD: password
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    links:
+      - app
+    ports:
+      - "8000:8000"
+    volumes:
+      - webroot:/var/www/todobackend
 
-agent:
-  image: postalservice14/ansible
-  links:
-    - db
-  environment:
-    PROBE_HOST: "db"
-    PROBE_PORT: "3306"
-  command: ["probe.yml"]
+  db:
+    image: mysql:5.7
+    expose:
+      - "3306"
+    environment:
+      MYSQL_DATABASE: todobackend
+      MYSQL_USER: todo
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+
+  agent:
+    image: postalservice14/ansible
+    links:
+      - db
+    environment:
+      PROBE_HOST: "db"
+      PROBE_PORT: "3306"
+    command: ["probe.yml"]
