@@ -1,50 +1,46 @@
-version: '2'
+test:
+  build: ../../
+  dockerfile: docker/dev/Dockerfile
+  volumes_from:
+    - cache
+  links:
+    - db
+  environment:
+    DJANGO_SETTINGS_MODULE: todobackend.settings.test
+    MYSQL_HOST: db
+    MYSQL_USER: root
+    MYSQL_PASSWORD: password
+    TEST_OUTPUT_DIR: /reports
 
-volumes:
-  build:
-    driver: local
-  cache:
-    external: true
+builder:
+  build: ../../
+  dockerfile: docker/dev/Dockerfile
+  volumes_from:
+    - cache
+  entrypoint: "entrypoint.sh"
+  command: ["pip", "wheel", "--no-index", "-f /build", "."]
 
-services:
-  test:
-    build:
-      context: ../../
-      dockerfile: docker/dev/Dockerfile
-    volumes:
-      - cache:/cache
-      - build:/build
-    links:
-      - db
-    environment:
-      DJANGO_SETTINGS_MODULE: todobackend.settings.test
-      MYSQL_HOST: db
-      MYSQL_USER: root
-      MYSQL_PASSWORD: password
-      TEST_OUTPUT_DIR: /reports
+agent:
+  image: postalservice14/ansible
+  links:
+    - db
+  environment:
+    PROBE_HOST: "db"
+    PROBE_PORT: "3306"
+  command: ["probe.yml"]
 
-  builder:
-    build:
-      context: ../../
-      dockerfile: docker/dev/Dockerfile
-    volumes:
-      - build:/build
-    entrypoint: "entrypoint.sh"
-    command: ["pip", "wheel", "--no-index", "-f /build", "."]
+db:
+  image: mysql:5.7
+  hostname: db
+  expose:
+    - "3306"
+  environment:
+    MYSQL_ROOT_PASSWORD: password
 
-  agent:
-    image: postalservice14/ansible
-    links:
-      - db
-    environment:
-      PROBE_HOST: "db"
-      PROBE_PORT: "3306"
-    command: ["probe.yml"]
-
-  db:
-    image: mysql:5.7
-    hostname: db
-    expose:
-      - "3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: password
+cache:
+  build: ../../
+  dockerfile: docker/dev/Dockerfile
+  volumes:
+    - /tmp/cache:/cache
+    - /build
+  entrypoint: "true"
